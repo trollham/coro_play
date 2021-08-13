@@ -5,7 +5,7 @@ template <typename T>
 coro_play::generator<T> iota() {
     auto current = T{};
     while(true)
-        co_yield current++,0;
+        co_yield current++;
 }
 
 TEST(coroutines_test, generator_from_0) {
