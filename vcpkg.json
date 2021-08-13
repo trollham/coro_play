@@ -1,0 +1,7 @@
+{
+    "name": "coroutines-playground",
+    "version": "0.1",
+    "dependencies": [
+        "gtest"
+    ]
+}
