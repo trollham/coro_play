@@ -1,19 +1,23 @@
 #pragma once
+#include <compare>
 #include <coroutine>
+#include <iterator>
+#include <optional>
 
 namespace coro_play
 {
     template <typename T>
     struct generator
     {
+        using value_type = T;
         struct promise_type
         {
-            T state;
+            T current;
             generator<T> get_return_object() { return coro_handle::from_promise(*this); }
             std::suspend_always initial_suspend() { return {}; }
             std::suspend_always yield_value(T expr)
             {
-                state = expr;
+                current = expr;
                 return {};
             }
             void unhandled_exception() {}
@@ -24,19 +28,63 @@ namespace coro_play
 
         coro_handle handle;
 
-        operator T &()
+        generator(coro_handle handle) : handle(handle) {}
+        generator(generator const &) = delete;
+        generator &operator=(generator const &) = delete;
+        ~generator()
         {
-            return handle.promise().state;
-        }
-
-        generator(coro_handle const handle_) : handle(handle_) {}
-        ~generator() {
             handle.destroy();
         }
 
-        generator& get_next() {
+        struct sentinel
+        {
+        };
+
+        struct iterator
+        {
+
+            using iterator_category = std::input_iterator_tag;
+            using difference_type = std::ptrdiff_t;
+            using value_type = T;
+            using pointer = value_type *;
+            using reference = value_type &;
+
+            coro_handle handle;
+            
+            reference operator*()
+            {
+                return handle.promise().current;
+            }
+
+            void operator++(int)
+            {
+                operator++();
+            }
+
+            iterator &operator++()
+            {
+                if (handle)
+                {
+                    handle.resume();
+                }
+                return *this;
+            }
+
+            friend bool operator==(generator::iterator const & lhs, generator::sentinel)
+            {
+                return !lhs.handle || lhs.handle.done();
+            }
+        };
+
+        auto begin() const noexcept
+        {
             handle.resume();
-            return *this;
+            return iterator(handle);
+        }
+
+        auto end() const noexcept
+        {
+            return sentinel();
         }
     };
 }
